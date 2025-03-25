@@ -1,42 +1,49 @@
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
-from typing import List
+from typing import List, Dict
 
 app = FastAPI()
 
-# Definición del modelo de datos
-class Aviso(BaseModel):
+# Modelo para la entrada (POST)
+class AvisoIn(BaseModel):
+    titulo: str
+    contenido: str
+
+# Modelo para la salida (GET)
+class AvisoOut(BaseModel):
     id: int
     titulo: str
     contenido: str
 
-# Almacenamiento en memoria para los avisos
-avisos = []
-id_counter = 1  # Contador para IDs
+# Almacenamiento en memoria
+avisos: List[Dict] = []
+id_counter = 1
 
-@app.get("/avisos", response_model=List[Aviso])
+@app.get("/avisos", response_model=List[AvisoOut])
 def obtener_avisos():
     return avisos
 
-@app.post("/avisos")
-def agregar_aviso(aviso: Aviso):
+@app.post("/avisos", response_model=AvisoOut)
+def agregar_aviso(aviso: AvisoIn):
     global id_counter
-    aviso.id = id_counter  # Asignar el ID automáticamente
-    avisos.append(aviso)
-    id_counter += 1  # Incrementar el contador
-    return {"mensaje": "Aviso agregado correctamente"}
+    nuevo_aviso = {
+        "id": id_counter,
+        "titulo": aviso.titulo,
+        "contenido": aviso.contenido
+    }
+    avisos.append(nuevo_aviso)
+    id_counter += 1
+    return nuevo_aviso
 
 @app.delete("/avisos/{aviso_id}")
 def eliminar_aviso(aviso_id: int):
     global avisos
-    # Verificar si el aviso existe
     for aviso in avisos:
-        if aviso.id == aviso_id:
+        if aviso["id"] == aviso_id:
             avisos.remove(aviso)
             return {"mensaje": "Aviso eliminado correctamente"}
-    # Si no se encuentra el aviso, lanzar un error 404
     raise HTTPException(status_code=404, detail="Aviso no encontrado")
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="192.168.106.20", port=8000)  # Permitir conexiones externas
+    uvicorn.run(app, host="192.168.106.123", port=8000)
