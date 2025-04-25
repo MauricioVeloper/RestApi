@@ -44,6 +44,22 @@ class AvisosAppMini:
         
         main_frame = ttk.Frame(self.root, padding=10)
         main_frame.pack(fill=tk.BOTH, expand=True)
+
+        # Campo de búsqueda
+        search_frame = ttk.Frame(main_frame)
+        search_frame.pack(fill=tk.X, pady=(0, 10))
+
+        ttk.Label(search_frame, text="Buscar:").pack(side=tk.LEFT, padx=(0, 5))
+        self.search_var = tk.StringVar()
+        search_entry = ttk.Entry(search_frame, textvariable=self.search_var)
+        search_entry.pack(side=tk.LEFT, fill=tk.X, expand=True)
+
+        ttk.Button(
+            search_frame,
+            text="Filtrar",
+            command=self.buscar_avisos
+        ).pack(side=tk.LEFT, padx=5)
+
         
         list_frame = ttk.Frame(main_frame)
         list_frame.pack(fill=tk.BOTH, expand=True, pady=(0, 10))
@@ -129,6 +145,14 @@ class AvisosAppMini:
             contenido.insert(tk.END, aviso['contenido'])
             contenido.config(state=tk.DISABLED)
             
+            ttk.Label(
+                frame,
+                text=f"Creado: {aviso['creado_en']}\nEditado: {aviso['actualizado_en']}",
+                font=('Segoe UI', 9),
+                foreground="#555555"
+            ).pack(anchor=tk.W, pady=(5, 10))
+
+            
         except Exception as e:
             messagebox.showerror("Error", f"No se pudo cargar el aviso:\n{str(e)}")
 
@@ -148,6 +172,14 @@ class AvisosAppMini:
             self.formulario_aviso(response.json())
         except Exception as e:
             messagebox.showerror("Error", f"No se pudo cargar el aviso:\n{str(e)}")
+    
+    def buscar_avisos(self):
+        consulta = self.search_var.get().lower()
+        self.listbox.delete(0, tk.END)
+        for aviso in self.avisos:
+            if consulta in aviso['titulo'].lower() or consulta in aviso['contenido'].lower():
+                self.listbox.insert(tk.END, f"{aviso['id']} | {aviso['titulo']}")
+
 
     def eliminar_aviso(self):
         sel = self.listbox.curselection()
