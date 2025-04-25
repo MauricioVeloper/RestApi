@@ -1,6 +1,7 @@
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 from typing import List, Dict
+from datetime import datetime
 
 app = FastAPI()
 
@@ -14,6 +15,8 @@ class AvisoOut(BaseModel):
     id: int
     titulo: str
     contenido: str
+    creado_en: datetime
+    actualizado_en: datetime
 
 # Almacenamiento en memoria
 avisos: List[Dict] = []
@@ -31,7 +34,9 @@ def agregar_aviso(aviso: AvisoIn):
     nuevo_aviso = {
         "id": id_counter,
         "titulo": aviso.titulo,
-        "contenido": aviso.contenido
+        "contenido": aviso.contenido,
+        "creado_en": datetime.now(),
+        "actualizado_en": datetime.now()
     }
     avisos.append(nuevo_aviso)
     id_counter += 1
@@ -42,6 +47,10 @@ def agregar_aviso(aviso: AvisoIn):
 def obtener_aviso(aviso_id: int):
     for aviso in avisos:
         if aviso["id"] == aviso_id:
+            if "creado_en" not in aviso:
+                aviso["creado_en"] = datetime.now()
+            if "actualizado_en" not in aviso:
+                aviso["actualizado_en"] = datetime.now()
             return aviso
     raise HTTPException(status_code=404, detail="Aviso no encontrado")
 
@@ -54,7 +63,8 @@ def actualizar_aviso(aviso_id: int, aviso_actualizado: AvisoIn):
             avisos[index] = {
                 "id": aviso_id,
                 "titulo": aviso_actualizado.titulo,
-                "contenido": aviso_actualizado.contenido
+                "contenido": aviso_actualizado.contenido,
+                "actualizado_en": datetime.now()
             }
             return avisos[index]
     raise HTTPException(status_code=404, detail="Aviso no encontrado")
