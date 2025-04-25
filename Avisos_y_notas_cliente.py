@@ -1,117 +1,245 @@
-import requests
 import tkinter as tk
-from tkinter import messagebox, simpledialog
+from tkinter import ttk, messagebox
+import requests
+import tkinter.scrolledtext as scrolledtext
 
-API_URL = "http://192.168.106.123:8000/avisos"  # Asegúrate de que la IP y puerto sean correctos
-
-# Función para cargar avisos desde el servidor
-def cargar_avisos():
-    try:
-        response = requests.get(API_URL)
-        response.raise_for_status()  # Verifica errores HTTP
-        avisos = response.json()
-        listbox.delete(0, tk.END)  # Limpiar la lista actual
+class AvisosAppMini:
+    def __init__(self, root):
+        self.root = root
+        self.API_URL = "http://192.168.100.26:8000/avisos"
+        self.avisos = []
         
-        # Mostrar solo avisos con estructura válida
-        for aviso in avisos:
-            if "id" in aviso and "titulo" in aviso:  # Verificar campos requeridos
-                listbox.insert(tk.END, f"{aviso['id']} - {aviso['titulo']}")
-            else:
-                print(f"⚠ Aviso omitido (estructura inválida): {aviso}")  # Depuración
-                
-    except requests.exceptions.RequestException as e:
-        messagebox.showerror("Error", f"No se pudieron cargar los avisos:\n{str(e)}")
+        self.setup_estilos()
+        self.crear_interfaz()
+        self.cargar_avisos()
 
-# Función para agregar un nuevo aviso
-def agregar_aviso():
-    titulo = simpledialog.askstring("Nuevo Aviso", "Ingrese el título:")
-    contenido = simpledialog.askstring("Nuevo Aviso", "Ingrese el contenido:")
-    
-    if titulo and contenido:  # Solo proceder si ambos campos tienen datos
-        try:
-            response = requests.post(
-                API_URL,
-                json={"titulo": titulo, "contenido": contenido}
+    def setup_estilos(self):
+        style = ttk.Style()
+        
+        style.configure('TButton', 
+                      font=('Segoe UI', 10),
+                      padding=6,
+                      relief="flat",
+                      foreground='black')  # Texto siempre negro
+        
+        style.map('TButton',
+                background=[
+                    ('pressed', '#005499'),  # Azul oscuro al presionar
+                    ('active', '#e1eef7')    # Azul muy claro al pasar mouse
+                ],
+                foreground=[
+                    ('pressed', 'white'),    # Texto blanco al presionar
+                    ('active', 'black')      # Texto negro al pasar mouse
+                ])
+        
+        self.root.option_add('*Listbox*Font', ('Segoe UI', 10))
+        self.root.option_add('*Listbox*selectBackground', '#0078d7')
+        self.root.option_add('*Listbox*selectForeground', 'white')
+
+    def crear_interfaz(self):
+        self.root.title("Tablero de Avisos")
+        self.root.geometry("600x400")  # Ventana más pequeña
+        self.root.minsize(500, 350)   # Tamaño mínimo reducido
+        self.root.configure(bg='#f5f5f5')
+        
+        main_frame = ttk.Frame(self.root, padding=10)
+        main_frame.pack(fill=tk.BOTH, expand=True)
+        
+        list_frame = ttk.Frame(main_frame)
+        list_frame.pack(fill=tk.BOTH, expand=True, pady=(0, 10))
+        
+        scrollbar = ttk.Scrollbar(list_frame)
+        scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+        
+        self.listbox = tk.Listbox(
+            list_frame,
+            yscrollcommand=scrollbar.set,
+            bg='white',
+            borderwidth=1,
+            relief='solid',
+            highlightthickness=0
+        )
+        self.listbox.pack(fill=tk.BOTH, expand=True)
+        scrollbar.config(command=self.listbox.yview)
+        self.listbox.bind("<<ListboxSelect>>", self.mostrar_detalles)
+        
+        btn_frame = ttk.Frame(main_frame)
+        btn_frame.pack(fill=tk.X)
+        
+        botones = [
+            ("Nuevo", self.nuevo_aviso),
+            ("Editar", self.editar_aviso),
+            ("Eliminar", self.eliminar_aviso),
+            ("Actualizar", self.cargar_avisos)
+        ]
+        
+        for text, cmd in botones:
+            btn = ttk.Button(
+                btn_frame,
+                text=text,
+                command=cmd,
+                style='TButton'
             )
-            response.raise_for_status()
-            cargar_avisos()  # Recargar la lista después de agregar
-        except requests.exceptions.HTTPError as e:
-            if e.response.status_code == 422:
-                messagebox.showerror("Error", "Datos inválidos. Revise el formato.")
-            else:
-                messagebox.showerror("Error", f"Error del servidor:\n{str(e)}")
-        except requests.exceptions.RequestException as e:
-            messagebox.showerror("Error", f"No se pudo conectar al servidor:\n{str(e)}")
+            btn.pack(side=tk.LEFT, padx=5, ipadx=5)
 
-# Función para eliminar un aviso seleccionado
-def eliminar_aviso():
-    seleccion = listbox.curselection()
-    if seleccion:  # Verificar si hay un elemento seleccionado
-        aviso_id = listbox.get(seleccion[0]).split(" - ")[0]  # Extraer el ID
-        
+    def cargar_avisos(self):
         try:
-            response = requests.delete(f"{API_URL}/{aviso_id}")
+            response = requests.get(self.API_URL, timeout=5)
             response.raise_for_status()
-            cargar_avisos()  # Recargar la lista después de eliminar
-        except requests.exceptions.RequestException as e:
-            messagebox.showerror("Error", f"No se pudo eliminar el aviso:\n{str(e)}")
-    else:
-        messagebox.showwarning("Advertencia", "Seleccione un aviso para eliminar.")
+            self.avisos = response.json()
+            self.listbox.delete(0, tk.END)
+            for aviso in self.avisos:
+                self.listbox.insert(tk.END, f"{aviso['id']} | {aviso['titulo']}")
+        except Exception as e:
+            messagebox.showerror("Error", f"No se pudo cargar la lista:\n{str(e)}")
 
-# Configuración de la ventana principal
-root = tk.Tk()
-root.title("Gestor de Avisos")
-root.geometry("400x300")
+    def mostrar_detalles(self, event=None):
+        sel = self.listbox.curselection()
+        if not sel: return
+        
+        aviso_id = self.listbox.get(sel[0]).split('|')[0].strip()
+        try:
+            response = requests.get(f"{self.API_URL}/{aviso_id}", timeout=5)
+            response.raise_for_status()
+            aviso = response.json()
+            
+            top = tk.Toplevel(self.root)
+            top.title("Detalles del Aviso")
+            top.geometry("450x350")  # Tamaño reducido
+            
+            frame = ttk.Frame(top, padding=15)
+            frame.pack(fill=tk.BOTH, expand=True)
+            
+            ttk.Label(
+                frame,
+                text=aviso['titulo'],
+                font=('Segoe UI', 12, 'bold'),
+                foreground="#0078d7"
+            ).pack(anchor=tk.W, pady=(0, 10))
+            
+            ttk.Label(frame, text="Contenido:").pack(anchor=tk.W)
+            contenido = scrolledtext.ScrolledText(
+                frame,
+                wrap=tk.WORD,
+                font=('Segoe UI', 10),
+                padx=5,
+                pady=5
+            )
+            contenido.pack(fill=tk.BOTH, expand=True)
+            contenido.insert(tk.END, aviso['contenido'])
+            contenido.config(state=tk.DISABLED)
+            
+        except Exception as e:
+            messagebox.showerror("Error", f"No se pudo cargar el aviso:\n{str(e)}")
 
-# Frame para la lista de avisos
-frame = tk.Frame(root)
-frame.pack(pady=10, padx=10, fill=tk.BOTH, expand=True)
+    def nuevo_aviso(self):
+        self.formulario_aviso()
 
-# Listbox para mostrar los avisos
-listbox = tk.Listbox(
-    frame,
-    width=50,
-    height=10,
-    font=("Arial", 10)
-)
-listbox.pack(fill=tk.BOTH, expand=True)
+    def editar_aviso(self):
+        sel = self.listbox.curselection()
+        if not sel:
+            messagebox.showwarning("Advertencia", "Seleccione un aviso para editar")
+            return
+            
+        aviso_id = self.listbox.get(sel[0]).split('|')[0].strip()
+        try:
+            response = requests.get(f"{self.API_URL}/{aviso_id}", timeout=5)
+            response.raise_for_status()
+            self.formulario_aviso(response.json())
+        except Exception as e:
+            messagebox.showerror("Error", f"No se pudo cargar el aviso:\n{str(e)}")
 
-# Barra de desplazamiento
-scrollbar = tk.Scrollbar(frame)
-scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
-listbox.config(yscrollcommand=scrollbar.set)
-scrollbar.config(command=listbox.yview)
+    def eliminar_aviso(self):
+        sel = self.listbox.curselection()
+        if not sel:
+            messagebox.showwarning("Advertencia", "Seleccione un aviso para eliminar")
+            return
+            
+        aviso_id = self.listbox.get(sel[0]).split('|')[0].strip()
+        if messagebox.askyesno(
+            "Confirmar eliminación",
+            "¿Está seguro de eliminar este aviso?",
+            icon="warning"
+        ):
+            try:
+                response = requests.delete(f"{self.API_URL}/{aviso_id}", timeout=5)
+                response.raise_for_status()
+                self.cargar_avisos()
+            except Exception as e:
+                messagebox.showerror("Error", f"No se pudo eliminar:\n{str(e)}")
 
-# Botones
-btn_frame = tk.Frame(root)
-btn_frame.pack(pady=5)
+    def formulario_aviso(self, aviso=None):
+        top = tk.Toplevel(self.root)
+        top.title("Editar Aviso" if aviso else "Nuevo Aviso")
+        top.geometry("450x350")  # Tamaño reducido
+        
+        frame = ttk.Frame(top, padding=15)
+        frame.pack(fill=tk.BOTH, expand=True)
+        
+        ttk.Label(frame, text="Título:").pack(anchor=tk.W)
+        titulo = ttk.Entry(frame, font=('Segoe UI', 10))
+        titulo.pack(fill=tk.X, pady=(0, 10))
+        if aviso:
+            titulo.insert(0, aviso['titulo'])
+        
+        ttk.Label(frame, text="Contenido:").pack(anchor=tk.W)
+        contenido = scrolledtext.ScrolledText(
+            frame,
+            wrap=tk.WORD,
+            font=('Segoe UI', 10),
+            height=8
+        )
+        contenido.pack(fill=tk.BOTH, expand=True)
+        if aviso:
+            contenido.insert(tk.END, aviso['contenido'])
+        
+        btn_frame = ttk.Frame(frame)
+        btn_frame.pack(fill=tk.X, pady=(10, 0))
+        
+        def guardar():
+            datos = {
+                "titulo": titulo.get(),
+                "contenido": contenido.get("1.0", tk.END).strip()
+            }
+            
+            if not datos["titulo"] or not datos["contenido"]:
+                messagebox.showwarning("Validación", "Todos los campos son requeridos")
+                return
+                
+            try:
+                if aviso:
+                    response = requests.put(
+                        f"{self.API_URL}/{aviso['id']}",
+                        json=datos,
+                        timeout=5
+                    )
+                else:
+                    response = requests.post(
+                        self.API_URL,
+                        json=datos,
+                        timeout=5
+                    )
+                
+                response.raise_for_status()
+                self.cargar_avisos()
+                top.destroy()
+                
+            except Exception as e:
+                messagebox.showerror("Error", f"Error al guardar:\n{str(e)}")
+        
+        ttk.Button(
+            btn_frame,
+            text="Guardar",
+            command=guardar
+        ).pack(side=tk.RIGHT, padx=5)
+        
+        ttk.Button(
+            btn_frame,
+            text="Cancelar",
+            command=top.destroy
+        ).pack(side=tk.RIGHT)
 
-btn_cargar = tk.Button(
-    btn_frame,
-    text="Actualizar Avisos",
-    command=cargar_avisos,
-    width=15
-)
-btn_cargar.pack(side=tk.LEFT, padx=5)
-
-btn_agregar = tk.Button(
-    btn_frame,
-    text="Agregar Aviso",
-    command=agregar_aviso,
-    width=15
-)
-btn_agregar.pack(side=tk.LEFT, padx=5)
-
-btn_eliminar = tk.Button(
-    btn_frame,
-    text="Eliminar Aviso",
-    command=eliminar_aviso,
-    width=15
-)
-btn_eliminar.pack(side=tk.LEFT, padx=5)
-
-# Cargar avisos al iniciar
-cargar_avisos()
-
-# Iniciar la aplicación
-root.mainloop()
+if __name__ == "__main__":
+    root = tk.Tk()
+    app = AvisosAppMini(root)
+    root.mainloop()
