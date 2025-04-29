@@ -64,11 +64,12 @@ def actualizar_aviso(aviso_id: int, aviso_actualizado: AvisoIn):
                 "id": aviso_id,
                 "titulo": aviso_actualizado.titulo,
                 "contenido": aviso_actualizado.contenido,
+                "creado_en": aviso["creado_en"],  #conservar fecha original
                 "actualizado_en": datetime.now()
             }
             return avisos[index]
     raise HTTPException(status_code=404, detail="Aviso no encontrado")
-
+    
 # Endpoint para eliminar un aviso
 @app.delete("/avisos/{aviso_id}")
 def eliminar_aviso(aviso_id: int):
