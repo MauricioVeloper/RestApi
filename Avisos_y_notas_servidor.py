@@ -82,4 +82,4 @@ def eliminar_aviso(aviso_id: int):
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="192.168.100.26", port=8000)
+    uvicorn.run(app, host="172.21.112.1", port=8000)
