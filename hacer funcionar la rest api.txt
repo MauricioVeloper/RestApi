@@ -1,0 +1,3 @@
+hacer funcionar la rest api
+docker pull saulgonzalez8902/avisos-servidor1
+docker run -d -p 8000:8000 saulgonzalez8902/avisos-servidor1
