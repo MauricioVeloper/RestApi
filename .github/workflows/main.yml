@@ -28,8 +28,17 @@ jobs:
         run: |
           python -m py_compile Avisos_y_notas_servidor.py
 
-      - name: Ejecutar servidor y probar endpoint
+      - name: Ejecutar servidor en segundo plano
         run: |
           uvicorn Avisos_y_notas_servidor:app --host 127.0.0.1 --port 8000 &
           sleep 5
-          curl -X GET http://127.0.0.1:8000/avisos
+
+      - name: Crear un aviso de prueba
+        run: |
+          curl -X POST http://127.0.0.1:8000/avisos \
+            -H "Content-Type: application/json" \
+            -d '{"titulo": "Aviso de CI", "contenido": "Este aviso fue creado automáticamente"}'
+
+      - name: Verificar que el aviso fue creado
+        run: |
+          curl -X GET http://127.0.0.1:8000/avisos | grep "Aviso de CI"
