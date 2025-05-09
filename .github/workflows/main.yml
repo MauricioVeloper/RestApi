@@ -33,11 +33,21 @@ jobs:
           uvicorn Avisos_y_notas_servidor:app --host 127.0.0.1 --port 8000 &
           sleep 5
 
-      - name: Crear un aviso de prueba
+      - name: Crear aviso y validar respuesta
         run: |
-          curl -X POST http://127.0.0.1:8000/avisos \
-            -H "Content-Type: application/json" \
-            -d '{"titulo": "Aviso de CI", "contenido": "Este aviso fue creado automáticamente"}'
+          TITULO="Aviso de CI"
+          CONTENIDO="Este aviso fue generado automáticamente"
+
+          RESPUESTA=$(curl -s -X POST http://127.0.0.1:8000/avisos \
+          -H "Content-Type: application/json" \
+          -d "{\"titulo\": \"$TITULO\", \"contenido\": \"$CONTENIDO\"}")
+
+          echo "Respuesta del servidor:"
+          echo "$RESPUESTA"
+
+          echo "$RESPUESTA" | grep "$TITULO"
+          echo "$RESPUESTA" | grep "$CONTENIDO"
+
 
       - name: Verificar que el aviso fue creado
         run: |
