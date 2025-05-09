@@ -43,7 +43,6 @@ jobs:
           -d "{\"titulo\": \"$TITULO\", \"contenido\": \"$CONTENIDO\"}")
 
           echo "Respuesta del servidor:"
-          echo "$RESPUESTA"
 
           echo "$RESPUESTA" | grep "$TITULO"
           echo "$RESPUESTA" | grep "$CONTENIDO"
